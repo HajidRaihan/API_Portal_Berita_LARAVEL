@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Post;
+use Illuminate\Http\Request;
 use App\Http\Resources\PostResource;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\PostResourceDetail;
 
 class PostController extends Controller
 {
     public function index() {
-        $posts = Post::all();
+        $posts = Post::with('writer:id,username')->get();
         // return response()->json(['data' => $posts]);
 
         return PostResource::collection($posts);
@@ -24,15 +25,37 @@ class PostController extends Controller
 
     }
 
-    public function addPost(Request $request) {
+    public function store(Request $request) {
         $validateData = $request->validate ([
             'title' => 'required',
             'news_content' => 'required',
-            'author' => 'required'
         ]);
 
-        $post = Post::create($validateData);
-        return response()->json(['data' => $post]);
+        $request['author'] = Auth::user()->id;
 
+        $post = Post::create($request->all());
+        // return response()->json(['data' => $post]);
+        return new PostResourceDetail($post->loadMissing('writer:id,username'));
+
+
+
+    }
+
+    public function update(Request $request, $id) {
+        $validate = $request->validate([
+            'title' => 'required',
+            'news_content' => 'required',
+        ]);
+
+        $post = Post::findOrFail($id);
+        $post->update($validate);
+        // return response()->json(['data' => $post]);
+        return new PostResourceDetail($post->loadMissing('writer:id,username'));
+    }
+
+    public function destroy($id) {
+        $post = Post::findOrFail($id);
+        $post->delete();
+        return response()->json(['message' => 'deleted']);
     }
 }
